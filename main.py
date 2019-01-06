@@ -32,7 +32,14 @@ def train(result, model, logdir, train_sum_freq, val_sum_freq, save_freq, models
 			print("Training for iter %d/%d: " % (global_step, model.max_iter))
 			fd.write("Training for iter %d/%d: \n" % (global_step, model.max_iter))
 			trX, trY = get_batch_of_trainval(result, "train", model.batch_size)
-			_, total_loss, softmax_loss, focal_loss, mean_iou = sess.run([model.train_op, model.total_loss, model.total_ce, model.fl, model.mean_iou], feed_dict={model.X: trX, model.Y: trY})
+
+			_, total_loss, softmax_loss, focal_loss, mean_iou, fuse = sess.run([model.train_op, model.total_loss, model.total_ce, model.fl, model.mean_iou,model.fuse], feed_dict={model.X: trX, model.Y: trY})
+			
+			cv2.imwrite("./Result/step"+str(global_step)+"_fuse_channel_background.png",fuse[0][:,:,0])
+			cv2.imwrite("./Result/step"+str(global_step)+"_fuse_channel_foreground.png",fuse[0][:,:,1])
+
+			cv2.imwrite("./Result/step"+str(global_step)+"_input_image_channel_foreground.png",trY[0][:,:,1])			
+			cv2.imwrite("./Result/step"+str(global_step)+"_input_image_channel_background.png",trY[0][:,:,0])
 			
 			assert not np.isnan(total_loss), "Something wrong! loss is nan..."
 			
@@ -44,7 +51,7 @@ def train(result, model, logdir, train_sum_freq, val_sum_freq, save_freq, models
 				summary_str = sess.run(model.trainval_summary, feed_dict={model.X: trX, model.Y: trY})
 				train_writer.add_summary(summary_str, global_step)
 			
-			if val_sum_freq != 0 and global_step % val_sum_freq == 0:
+			if global_step != 0 and global_step % val_sum_freq == 0:
 				
 				print("\nValidation phase: ")
 				fd.write("\nValidation phase: \n")
@@ -115,7 +122,9 @@ def test(result, model, models, test_outputs):
 def main(_):
 	
 	# get dataset info
-	result = create_image_lists(cfg.images)
+	
+	result = create_image_lists_1(cfg.images)
+	
 	max_iters = len(result["train"]) * cfg.epoch // cfg.batch_size
 	
 	tf.logging.info('Loading Graph...')
